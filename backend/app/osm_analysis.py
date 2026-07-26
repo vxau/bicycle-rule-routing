@@ -82,6 +82,8 @@ def build_network_summary(
     node_count: int,
     edge_count: int,
     edges: gpd.GeoDataFrame,
+    *,
+    street_length_m: float | None = None,
 ) -> dict[str, float | int]:
     """Build the basic statistics used in the first research report."""
     if "length" not in edges.columns:
@@ -90,12 +92,16 @@ def build_network_summary(
     total_length = float(
         pd.to_numeric(edges["length"], errors="coerce").fillna(0.0).sum()
     )
-    return {
+    summary: dict[str, float | int] = {
         "node_count": node_count,
         "edge_count": edge_count,
         "total_edge_length_m": total_length,
         "total_edge_length_km": round(total_length / 1000, 3),
     }
+    if street_length_m is not None:
+        summary["street_length_m"] = float(street_length_m)
+        summary["street_length_km"] = round(float(street_length_m) / 1000, 3)
+    return summary
 
 
 def _percentage(part: float, total: float) -> float:

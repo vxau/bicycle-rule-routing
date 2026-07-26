@@ -70,3 +70,24 @@ def test_summary_reports_counts_and_total_length() -> None:
         "total_edge_length_km": 0.35,
     }
 
+
+def test_summary_can_report_unique_street_length() -> None:
+    edges = gpd.GeoDataFrame(
+        {"length": [100.0, 100.0]},
+        geometry=[
+            LineString([(0, 0), (100, 0)]),
+            LineString([(100, 0), (0, 0)]),
+        ],
+        crs="EPSG:3857",
+    )
+
+    summary = build_network_summary(
+        2,
+        2,
+        edges,
+        street_length_m=100.0,
+    )
+
+    assert summary["total_edge_length_m"] == 200.0
+    assert summary["street_length_m"] == 100.0
+    assert summary["street_length_km"] == 0.1
