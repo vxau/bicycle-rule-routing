@@ -54,3 +54,21 @@ FastAPIはPython 3.10と従来の`httpx` TestClientを正式に扱う0.116.1へ�
 - システム環境変数、PATH、PowerShell実行ポリシーを変更していない。
 - Cドライブへ新しいSDKや大容量ツールを導入していない。
 - 既存のPython、Node.js、Git、VS Codeを削除・更新していない。
+
+## 構築後の確認
+
+| 項目 | 結果 |
+|---|---|
+| FastAPI | 0.116.1 |
+| Uvicorn | 0.35.0 |
+| OSMnx | 2.0.6 |
+| NetworkX | 3.4.2 |
+| GeoPandas | 1.1.4 |
+| Shapely | 2.1.2 |
+| pytest | 8.4.1 |
+| Python仮想環境 | 約261 MiB |
+| pipキャッシュ | 約68 MiB |
+| `pip check` | 依存関係の破損なし |
+
+仮想環境、pipキャッシュ、OSMnxキャッシュ、取得データはすべて
+`E:\graduation-research\bicycle-rule-routing`配下に作成した。
