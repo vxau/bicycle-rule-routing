@@ -1,0 +1,13 @@
+.venv/
+.cache/
+.env
+__pycache__/
+.pytest_cache/
+*.py[cod]
+data/raw/*
+data/processed/*
+data/exports/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/exports/.gitkeep
+

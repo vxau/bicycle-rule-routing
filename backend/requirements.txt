@@ -1,0 +1,7 @@
+fastapi>=0.115,<1
+httpx>=0.28,<1
+osmnx==2.0.6
+python-dotenv>=1,<2
+pytest>=8,<10
+uvicorn>=0.34,<1
+
