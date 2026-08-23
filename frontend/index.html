@@ -19,6 +19,29 @@
         <p>API: <strong id="api-status">確認中</strong></p>
         <p>道路データ: <strong id="data-status">確認中</strong></p>
       </section>
+      <section class="route-panel" aria-label="最短経路操作">
+        <div class="route-heading">
+          <div>
+            <h2>距離最短ルート</h2>
+            <p id="route-status">地図上で出発地点をクリックしてください。</p>
+          </div>
+          <button id="reset-route" type="button">選択をやり直す</button>
+        </div>
+        <dl id="route-summary" class="route-summary" hidden>
+          <div><dt>距離</dt><dd id="metric-distance">-</dd></div>
+          <div><dt>道路区間</dt><dd id="metric-edges">-</dd></div>
+          <div><dt>幹線道路率</dt><dd id="metric-major-road">-</dd></div>
+          <div><dt>自転車レーン率</dt><dd id="metric-cycleway">-</dd></div>
+          <div><dt>信号</dt><dd id="metric-signals">-</dd></div>
+          <div><dt>速度情報不明率</dt><dd id="metric-maxspeed-unknown">-</dd></div>
+          <div><dt>道幅情報不明率</dt><dd id="metric-width-unknown">-</dd></div>
+          <div><dt>路面情報不明率</dt><dd id="metric-surface-unknown">-</dd></div>
+          <div><dt>仮コスト</dt><dd id="metric-provisional-cost">-</dd></div>
+        </dl>
+        <p class="research-note">
+          仮コストはPhase 4に向けた実装途中の値であり、ルート選定にはまだ使用していません。
+        </p>
+      </section>
       <div id="map" aria-label="OpenStreetMap道路地図"></div>
     </main>
   </body>

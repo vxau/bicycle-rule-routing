@@ -13,4 +13,6 @@ def test_root_serves_research_map_shell() -> None:
     assert 'id="map"' in response.text
     assert 'id="api-status"' in response.text
     assert 'id="data-status"' in response.text
-
+    assert 'id="route-status"' in response.text
+    assert 'id="route-summary"' in response.text
+    assert 'id="reset-route"' in response.text
