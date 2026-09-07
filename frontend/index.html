@@ -19,15 +19,33 @@
         <p>API: <strong id="api-status">確認中</strong></p>
         <p>道路データ: <strong id="data-status">確認中</strong></p>
       </section>
-      <section class="route-panel" aria-label="最短経路操作">
+      <section class="route-panel" aria-label="プロファイル別経路比較">
         <div class="route-heading">
           <div>
-            <h2>距離最短ルート</h2>
+            <h2>プロファイル別ルート比較</h2>
             <p id="route-status">地図上で出発地点をクリックしてください。</p>
           </div>
           <button id="reset-route" type="button">選択をやり直す</button>
         </div>
+        <div id="profile-legend" class="profile-legend" aria-label="ルート凡例"></div>
+        <div id="route-comparison" class="comparison-wrap" hidden>
+          <table>
+            <thead>
+              <tr>
+                <th>プロファイル</th>
+                <th>距離</th>
+                <th>幹線道路率</th>
+                <th>自転車レーン率</th>
+                <th>属性不明率</th>
+                <th>仮コスト</th>
+              </tr>
+            </thead>
+            <tbody id="route-comparison-body"></tbody>
+          </table>
+          <p class="table-note">行を選ぶと、対応するルートを地図上で強調します。</p>
+        </div>
         <dl id="route-summary" class="route-summary" hidden>
+          <div><dt>選択中</dt><dd id="metric-profile">-</dd></div>
           <div><dt>距離</dt><dd id="metric-distance">-</dd></div>
           <div><dt>道路区間</dt><dd id="metric-edges">-</dd></div>
           <div><dt>幹線道路率</dt><dd id="metric-major-road">-</dd></div>
@@ -36,10 +54,10 @@
           <div><dt>速度情報不明率</dt><dd id="metric-maxspeed-unknown">-</dd></div>
           <div><dt>道幅情報不明率</dt><dd id="metric-width-unknown">-</dd></div>
           <div><dt>路面情報不明率</dt><dd id="metric-surface-unknown">-</dd></div>
-          <div><dt>仮コスト</dt><dd id="metric-provisional-cost">-</dd></div>
+          <div><dt>プロファイル仮コスト</dt><dd id="metric-profile-cost">-</dd></div>
         </dl>
         <p class="research-note">
-          仮コストはPhase 4に向けた実装途中の値であり、ルート選定にはまだ使用していません。
+          Phase 4の比較機能です。明示的な通行禁止は制度対応側で除外し、道路種別・自転車設備・属性欠損には暫定重みを使用しています。法的な違反判定や重みの妥当性確定は行いません。
         </p>
       </section>
       <div id="map" aria-label="OpenStreetMap道路地図"></div>

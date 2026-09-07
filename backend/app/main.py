@@ -7,7 +7,12 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.routing import build_route_result, find_nearest_node, load_graph
+from backend.app.routing import (
+    build_route_comparison,
+    build_route_result,
+    find_nearest_node,
+    load_graph,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -66,6 +71,39 @@ def shortest_route(
     return {
         "route": result["geojson"],
         "summary": result["summary"],
+        "snapped_nodes": {"start": start_node, "end": end_node},
+    }
+
+
+@app.get("/api/routes/compare")
+def compare_routes(
+    start_lat: Annotated[float, Query(ge=-90, le=90)],
+    start_lon: Annotated[float, Query(ge=-180, le=180)],
+    end_lat: Annotated[float, Query(ge=-90, le=90)],
+    end_lon: Annotated[float, Query(ge=-180, le=180)],
+    graph: Annotated[nx.MultiDiGraph, Depends(get_graph)],
+) -> dict[str, object]:
+    start_node = find_nearest_node(
+        graph,
+        latitude=start_lat,
+        longitude=start_lon,
+    )
+    end_node = find_nearest_node(
+        graph,
+        latitude=end_lat,
+        longitude=end_lon,
+    )
+    try:
+        routes = build_route_comparison(
+            graph,
+            source=start_node,
+            target=end_node,
+        )
+    except nx.NetworkXNoPath as exc:
+        raise HTTPException(status_code=404, detail="経路が見つかりません") from exc
+
+    return {
+        "routes": routes,
         "snapped_nodes": {"start": start_node, "end": end_node},
     }
 

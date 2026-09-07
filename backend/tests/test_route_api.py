@@ -69,3 +69,55 @@ def test_shortest_route_api_reports_unreachable_destination() -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "経路が見つかりません"
+
+
+def test_route_comparison_api_returns_phase_four_profiles() -> None:
+    app.dependency_overrides[get_graph] = build_api_graph
+    client = TestClient(app)
+
+    try:
+        response = client.get(
+            "/api/routes/compare",
+            params={
+                "start_lat": 35.0000,
+                "start_lon": 139.0000,
+                "end_lat": 35.0000,
+                "end_lon": 139.0010,
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["snapped_nodes"] == {"start": 1, "end": 2}
+    assert [route["profile"]["id"] for route in body["routes"]] == [
+        "shortest",
+        "rule",
+        "safety",
+        "information",
+        "balanced",
+    ]
+
+
+def test_route_comparison_api_reports_fully_unreachable_destination() -> None:
+    graph = build_api_graph()
+    graph.add_node(3, x=140.0000, y=36.0000)
+    app.dependency_overrides[get_graph] = lambda: graph
+    client = TestClient(app)
+
+    try:
+        response = client.get(
+            "/api/routes/compare",
+            params={
+                "start_lat": 35.0000,
+                "start_lon": 139.0000,
+                "end_lat": 36.0000,
+                "end_lon": 140.0000,
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "経路が見つかりません"

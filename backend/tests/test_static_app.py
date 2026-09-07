@@ -16,3 +16,7 @@ def test_root_serves_research_map_shell() -> None:
     assert 'id="route-status"' in response.text
     assert 'id="route-summary"' in response.text
     assert 'id="reset-route"' in response.text
+    assert 'id="profile-legend"' in response.text
+    assert 'id="route-comparison"' in response.text
+    assert 'id="route-comparison-body"' in response.text
+    assert 'id="metric-profile"' in response.text

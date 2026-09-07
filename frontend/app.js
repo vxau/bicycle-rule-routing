@@ -3,10 +3,15 @@ const dataStatus = document.querySelector("#data-status");
 const routeStatus = document.querySelector("#route-status");
 const routeSummary = document.querySelector("#route-summary");
 const resetRouteButton = document.querySelector("#reset-route");
+const profileLegend = document.querySelector("#profile-legend");
+const routeComparison = document.querySelector("#route-comparison");
+const routeComparisonBody = document.querySelector("#route-comparison-body");
 const map = L.map("map").setView([35.681236, 139.767125], 15);
 let selectedPoints = [];
 let selectedMarkers = [];
-let routeLayer = null;
+let routeLayers = new Map();
+let routeResults = [];
+let activeRouteRequest = null;
 
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -71,14 +76,21 @@ function addSelectedPoint(latlng) {
   if (isStart) {
     routeStatus.textContent = "目的地点をクリックしてください。";
   } else {
-    loadShortestRoute();
+    loadProfileRoutes();
   }
 }
 
-async function loadShortestRoute() {
+async function loadProfileRoutes() {
   const [start, end] = selectedPoints;
-  routeStatus.textContent = "最短経路を計算しています。";
+  if (activeRouteRequest) {
+    activeRouteRequest.abort();
+  }
+  const request = new AbortController();
+  activeRouteRequest = request;
+  routeStatus.textContent = "5種類のルートを計算しています。";
   routeSummary.hidden = true;
+  routeComparison.hidden = true;
+  profileLegend.replaceChildren();
 
   const parameters = new URLSearchParams({
     start_lat: start.lat,
@@ -88,28 +100,144 @@ async function loadShortestRoute() {
   });
 
   try {
-    const response = await fetch(`/api/routes/shortest?${parameters}`);
+    const response = await fetch(`/api/routes/compare?${parameters}`, {
+      signal: request.signal,
+    });
     const result = await response.json();
     if (!response.ok) {
       throw new Error(result.detail || `HTTP ${response.status}`);
     }
 
-    if (routeLayer) {
-      routeLayer.remove();
+    if (activeRouteRequest === request) {
+      renderRouteComparison(result.routes);
     }
-    routeLayer = L.geoJSON(result.route, {
-      style: { color: "#1d4ed8", weight: 6, opacity: 0.95 },
-      interactive: false,
-    }).addTo(map);
-    showRouteSummary(result.summary);
-    routeStatus.textContent = "距離最短ルートを表示しました。";
   } catch (error) {
+    if (error.name === "AbortError") {
+      return;
+    }
     routeStatus.textContent = `経路計算に失敗しました: ${error.message}`;
-    console.error("Shortest route request failed:", error);
+    console.error("Route comparison request failed:", error);
+  } finally {
+    if (activeRouteRequest === request) {
+      activeRouteRequest = null;
+    }
   }
 }
 
-function showRouteSummary(summary) {
+function renderRouteComparison(routes) {
+  clearRouteLayers();
+  routeResults = routes;
+  routeComparisonBody.replaceChildren();
+  profileLegend.replaceChildren();
+
+  routes.forEach((result) => {
+    addLegendItem(result.profile);
+    addComparisonRow(result);
+    if (!result.available) {
+      return;
+    }
+    const layer = L.geoJSON(result.route, {
+      bubblingMouseEvents: false,
+      style: {
+        color: result.profile.color,
+        weight: 4,
+        opacity: 0.55,
+      },
+    })
+      .bindTooltip(result.profile.label)
+      .addTo(map);
+    layer.on("click", (event) => {
+      if (event.originalEvent) {
+        L.DomEvent.stopPropagation(event.originalEvent);
+      }
+      focusRoute(result.profile.id);
+    });
+    routeLayers.set(result.profile.id, layer);
+  });
+
+  routeComparison.hidden = false;
+  const preferred = routes.find(
+    (result) => result.available && result.profile.id === "balanced",
+  );
+  const initial = preferred || routes.find((result) => result.available);
+  if (initial) {
+    focusRoute(initial.profile.id);
+    routeStatus.textContent =
+      `${routes.filter((result) => result.available).length}種類を計算しました。表の行を選ぶと強調表示します。`;
+  } else {
+    routeStatus.textContent = "利用できるルートがありません。";
+  }
+}
+
+function addLegendItem(profile) {
+  const item = document.createElement("span");
+  item.className = "legend-item";
+  const swatch = document.createElement("span");
+  swatch.className = "legend-swatch";
+  swatch.style.backgroundColor = profile.color;
+  item.append(swatch, document.createTextNode(profile.label));
+  profileLegend.append(item);
+}
+
+function addComparisonRow(result) {
+  const row = document.createElement("tr");
+  row.dataset.profileId = result.profile.id;
+  const values = result.available
+    ? [
+        result.profile.label,
+        formatDistance(result.summary.distance_m),
+        `${result.summary.major_road_pct}%`,
+        `${result.summary.cycleway_pct}%`,
+        `${result.summary.unknown_attribute_pct}%`,
+        result.summary.profile_cost,
+      ]
+    : [result.profile.label, "経路なし", "-", "-", "-", "-"];
+
+  values.forEach((value) => {
+    const cell = document.createElement("td");
+    cell.textContent = value;
+    row.append(cell);
+  });
+
+  if (result.available) {
+    row.tabIndex = 0;
+    row.addEventListener("click", () => focusRoute(result.profile.id));
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        focusRoute(result.profile.id);
+      }
+    });
+  } else {
+    row.className = "unavailable";
+  }
+  routeComparisonBody.append(row);
+}
+
+function focusRoute(profileId) {
+  routeLayers.forEach((layer, id) => {
+    layer.setStyle({
+      weight: id === profileId ? 7 : 3,
+      opacity: id === profileId ? 0.95 : 0.2,
+    });
+    if (id === profileId) {
+      layer.bringToFront();
+    }
+  });
+
+  routeComparisonBody.querySelectorAll("tr").forEach((row) => {
+    row.classList.toggle("selected", row.dataset.profileId === profileId);
+  });
+  const selected = routeResults.find(
+    (result) => result.available && result.profile.id === profileId,
+  );
+  if (selected) {
+    showRouteSummary(selected.summary, selected.profile);
+  }
+}
+
+function showRouteSummary(summary, profile) {
+  document.querySelector("#metric-profile").textContent = profile.label;
   document.querySelector("#metric-distance").textContent = formatDistance(
     summary.distance_m,
   );
@@ -127,9 +255,14 @@ function showRouteSummary(summary) {
     `${summary.unknown_width_pct}%`;
   document.querySelector("#metric-surface-unknown").textContent =
     `${summary.unknown_surface_pct}%`;
-  document.querySelector("#metric-provisional-cost").textContent =
-    summary.provisional_cost === null ? "算出対象外" : summary.provisional_cost;
+  document.querySelector("#metric-profile-cost").textContent =
+    summary.profile_cost === null ? "算出対象外" : summary.profile_cost;
   routeSummary.hidden = false;
+}
+
+function clearRouteLayers() {
+  routeLayers.forEach((layer) => layer.remove());
+  routeLayers = new Map();
 }
 
 function formatDistance(distanceMeters) {
@@ -140,13 +273,18 @@ function formatDistance(distanceMeters) {
 }
 
 function resetRoute() {
+  if (activeRouteRequest) {
+    activeRouteRequest.abort();
+    activeRouteRequest = null;
+  }
   selectedPoints = [];
   selectedMarkers.forEach((marker) => marker.remove());
   selectedMarkers = [];
-  if (routeLayer) {
-    routeLayer.remove();
-    routeLayer = null;
-  }
+  clearRouteLayers();
+  routeResults = [];
+  routeComparisonBody.replaceChildren();
+  profileLegend.replaceChildren();
+  routeComparison.hidden = true;
   routeSummary.hidden = true;
   routeStatus.textContent = "地図上で出発地点をクリックしてください。";
 }

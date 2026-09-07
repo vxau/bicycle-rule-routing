@@ -79,6 +79,77 @@ button:hover {
   display: none;
 }
 
+.comparison-wrap[hidden] {
+  display: none;
+}
+
+.profile-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 8px 0 12px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.legend-swatch {
+  width: 18px;
+  height: 5px;
+  border-radius: 2px;
+}
+
+.comparison-wrap {
+  overflow-x: auto;
+  margin: 8px 0 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+th,
+td {
+  padding: 8px;
+  border: 1px solid #d7e1db;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  background: #eef3f0;
+}
+
+tbody tr:not(.unavailable) {
+  cursor: pointer;
+}
+
+tbody tr:not(.unavailable):hover,
+tbody tr.selected {
+  background: #e8f4ed;
+}
+
+tbody tr.selected {
+  box-shadow: inset 4px 0 #26734d;
+}
+
+tbody tr.unavailable {
+  color: #7a8580;
+  background: #f4f4f4;
+}
+
+.table-note {
+  margin: 6px 0 0;
+  color: #5f6f66;
+  font-size: 0.8rem;
+}
+
 .route-summary div {
   padding: 8px;
   background: #f4f7f5;

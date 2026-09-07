@@ -42,7 +42,21 @@ provisional_cost
 - `unknown_risk`: `bicycle`、`cycleway`、`maxspeed`、`width`、`surface`の不明割合
 - `bicycle=no`または`access=no/private`: 通行禁止候補として識別し、仮コストは算出対象外
 
-係数は有効性を示す確定値ではない。Phase 4では、根拠、感度分析、現地確認を通して見直す。
+係数は有効性を示す確定値ではない。Phase 5では、根拠、感度分析、現地確認を通して見直す。
+
+## Phase 4の経路プロファイル
+
+同じ道路コスト要素に異なる暫定重みを与え、次の5種類を比較する。
+
+| ID | 表示名 | 道路種別 | 自転車設備なし | 属性不明 | 明示的通行禁止 |
+|---|---|---:|---:|---:|---|
+| `shortest` | 距離最短 | 0.0 | 0.0 | 0.0 | 比較基準では除外しない |
+| `rule` | ルール遵守優先 | 0.1 | 0.1 | 0.35 | 除外 |
+| `safety` | 安全性優先 | 0.8 | 0.6 | 0.1 | 除外 |
+| `information` | 情報信頼性優先 | 0.0 | 0.0 | 1.0 | 除外 |
+| `balanced` | バランス型 | 0.4 | 0.2 | 0.5 | 除外 |
+
+`shortest`は従来型との比較基準を残すため距離のみで計算する。他の4種類は`bicycle=no`または`access=no/private`を通行不可とし、方向規制はOSMnxが生成した有向グラフに従う。タグ欠損は「通行不可」や「危険」と断定せず、評価情報の不確実性としてのみ加点する。
 
 ## 参照した一次・技術資料
 
@@ -57,10 +71,10 @@ provisional_cost
 - [OpenStreetMap Wiki: Key:surface](https://wiki.openstreetmap.org/wiki/Key:surface)
 - [OpenStreetMap Wiki: Key:width](https://wiki.openstreetmap.org/wiki/Key:width)
 
-## Phase 4へ残す検証
+## Phase 5へ残す検証
 
 - 生OSMタグとOSMnx正規化後グラフの方向・通行可否を比較する
 - 一方通行道路だけを対象に`oneway:bicycle`の充足率を算出する
 - 日本の標識・例外規定とOSMタグの対応を代表地点で現地確認する
 - 仮コストの各重みを変えた感度分析を行う
-- 距離優先、ルール優先、安全優先、情報信頼性優先のプロファイルを定義する
+- 複数ODペアで各プロファイルの距離・道路属性指標を比較する
