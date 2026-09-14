@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Mapping
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Hashable
 
@@ -27,6 +29,8 @@ PROVISIONAL_WEIGHTS = {
 
 UNKNOWN_TAGS = ("bicycle", "cycleway", "maxspeed", "width", "surface")
 CYCLEWAY_TAGS = ("cycleway", "cycleway:left", "cycleway:right", "cycleway:both")
+
+ProfileMap = Mapping[str, Mapping[str, Any]]
 
 ROUTE_PROFILES: dict[str, dict[str, Any]] = {
     "shortest": {
@@ -55,7 +59,7 @@ ROUTE_PROFILES: dict[str, dict[str, Any]] = {
     },
     "information": {
         "id": "information",
-        "label": "情報信頼性優先",
+        "label": "OSMデータ充足度優先",
         "description": "評価に必要なOSM属性が記録された区間を優先する暫定モデル",
         "color": "#7e22ce",
         "enforce_prohibited": True,
@@ -71,6 +75,22 @@ ROUTE_PROFILES: dict[str, dict[str, Any]] = {
     },
 }
 ROUTE_PROFILE_IDS = tuple(ROUTE_PROFILES)
+
+
+def scale_profile_weights(
+    *,
+    safety_multiplier: float,
+    unknown_multiplier: float,
+) -> dict[str, dict[str, Any]]:
+    if safety_multiplier < 0 or unknown_multiplier < 0:
+        raise ValueError("weight multipliers must be non-negative")
+    profiles = deepcopy(ROUTE_PROFILES)
+    for profile in profiles.values():
+        weights = profile["weights"]
+        weights["road_type"] *= safety_multiplier
+        weights["cycleway"] *= safety_multiplier
+        weights["unknown"] *= unknown_multiplier
+    return profiles
 
 
 def load_graph(path: Path) -> nx.MultiDiGraph:
@@ -143,12 +163,16 @@ def calculate_edge_cost_components(edge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def calculate_profile_cost(edge: dict[str, Any], profile_id: str) -> float:
+def calculate_profile_cost(
+    edge: dict[str, Any],
+    profile_id: str,
+    *,
+    profiles: ProfileMap = ROUTE_PROFILES,
+) -> float:
     """Return a provisional profile cost used by the Phase 4 comparison."""
-    try:
-        profile = ROUTE_PROFILES[profile_id]
-    except KeyError as exc:
-        raise ValueError(f"unknown route profile: {profile_id}") from exc
+    profile = profiles.get(profile_id)
+    if profile is None:
+        raise ValueError(f"unknown route profile: {profile_id}")
 
     components = calculate_edge_cost_components(edge)
     if profile["enforce_prohibited"] and components["prohibited"]:
@@ -170,8 +194,9 @@ def build_route_result(
     source: Hashable,
     target: Hashable,
     profile_id: str = "shortest",
+    profiles: ProfileMap = ROUTE_PROFILES,
 ) -> dict[str, Any]:
-    profile = ROUTE_PROFILES.get(profile_id)
+    profile = profiles.get(profile_id)
     if profile is None:
         raise ValueError(f"unknown route profile: {profile_id}")
 
@@ -179,10 +204,10 @@ def build_route_result(
         graph,
         source,
         target,
-        weight=_profile_weight_function(profile_id),
+        weight=_profile_weight_function(profile_id, profiles),
     )
     selected_edges = [
-        _select_profile_parallel_edge(graph, start, end, profile_id)
+        _select_profile_parallel_edge(graph, start, end, profile_id, profiles)
         for start, end in zip(node_path, node_path[1:])
     ]
     total_length = sum(edge[3]["length"] for edge in selected_edges)
@@ -201,7 +226,8 @@ def build_route_result(
         for edge in selected_edges
     ]
     profile_costs = [
-        calculate_profile_cost(edge[3], profile_id) for edge in selected_edges
+        calculate_profile_cost(edge[3], profile_id, profiles=profiles)
+        for edge in selected_edges
     ]
 
     summary: dict[str, Any] = {
@@ -240,11 +266,16 @@ def build_route_result(
 
     return {
         "node_path": list(node_path),
+        "edge_path": [
+            (start, end, key) for start, end, key, _data in selected_edges
+        ],
         "summary": summary,
         "geojson": {
             "type": "FeatureCollection",
             "features": [
-                _edge_feature(graph, start, end, key, data, profile_id)
+                _edge_feature(
+                    graph, start, end, key, data, profile_id, profiles
+                )
                 for start, end, key, data in selected_edges
             ],
         },
@@ -256,16 +287,18 @@ def build_route_comparison(
     *,
     source: Hashable,
     target: Hashable,
+    profiles: ProfileMap = ROUTE_PROFILES,
 ) -> list[dict[str, Any]]:
     routes: list[dict[str, Any]] = []
     for profile_id in ROUTE_PROFILE_IDS:
-        profile = _public_profile(ROUTE_PROFILES[profile_id])
+        profile = _public_profile(profiles[profile_id])
         try:
             result = build_route_result(
                 graph,
                 source=source,
                 target=target,
                 profile_id=profile_id,
+                profiles=profiles,
             )
         except nx.NetworkXNoPath:
             if profile_id == "shortest":
@@ -290,14 +323,14 @@ def build_route_comparison(
     return routes
 
 
-def _profile_weight_function(profile_id: str):
+def _profile_weight_function(profile_id: str, profiles: ProfileMap):
     def weight(
         _start: Hashable,
         _end: Hashable,
         parallel_edges: dict[Hashable, dict[str, Any]],
     ) -> float | None:
         costs = [
-            calculate_profile_cost(edge, profile_id)
+            calculate_profile_cost(edge, profile_id, profiles=profiles)
             for edge in parallel_edges.values()
         ]
         finite_costs = [cost for cost in costs if math.isfinite(cost)]
@@ -311,12 +344,13 @@ def _select_profile_parallel_edge(
     start: Hashable,
     end: Hashable,
     profile_id: str,
+    profiles: ProfileMap,
 ) -> tuple[Hashable, Hashable, Hashable, dict[str, Any]]:
     edges = graph.get_edge_data(start, end)
     if not edges:
         raise nx.NetworkXNoPath(f"edge {start!r} -> {end!r} is missing")
     candidates = [
-        (key, data, calculate_profile_cost(data, profile_id))
+        (key, data, calculate_profile_cost(data, profile_id, profiles=profiles))
         for key, data in edges.items()
     ]
     finite_candidates = [item for item in candidates if math.isfinite(item[2])]
@@ -335,6 +369,7 @@ def _edge_feature(
     key: Hashable,
     data: dict[str, Any],
     profile_id: str,
+    profiles: ProfileMap,
 ) -> dict[str, Any]:
     geometry = data.get("geometry") or LineString(
         [
@@ -357,7 +392,9 @@ def _edge_feature(
         "width": _json_safe(data.get("width")),
         "surface": _json_safe(data.get("surface")),
         "cost_components": components,
-        "profile_cost": round(calculate_profile_cost(data, profile_id), 2),
+        "profile_cost": round(
+            calculate_profile_cost(data, profile_id, profiles=profiles), 2
+        ),
     }
     if math.isinf(components["provisional_cost"]):
         properties["cost_components"]["provisional_cost"] = None

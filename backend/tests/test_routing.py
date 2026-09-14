@@ -1,15 +1,38 @@
 import math
+from copy import deepcopy
 
 import networkx as nx
 from shapely.geometry import LineString
 
 from backend.app.routing import (
+    ROUTE_PROFILES,
     ROUTE_PROFILE_IDS,
     build_route_comparison,
     build_route_result,
     calculate_edge_cost_components,
     find_nearest_node,
+    scale_profile_weights,
 )
+
+
+def test_information_profile_uses_osm_completeness_label() -> None:
+    assert ROUTE_PROFILES["information"]["label"] == "OSMデータ充足度優先"
+
+
+def test_scaled_profile_weights_do_not_mutate_defaults() -> None:
+    original = deepcopy(ROUTE_PROFILES)
+
+    scaled = scale_profile_weights(
+        safety_multiplier=2.0,
+        unknown_multiplier=0.5,
+    )
+
+    assert scaled["safety"]["weights"] == {
+        "road_type": 1.6,
+        "cycleway": 1.2,
+        "unknown": 0.05,
+    }
+    assert ROUTE_PROFILES == original
 
 
 def build_test_graph() -> nx.MultiDiGraph:
@@ -198,6 +221,32 @@ def build_profile_test_graph() -> nx.MultiDiGraph:
             surface="asphalt",
         )
     return graph
+
+
+def test_route_result_exposes_selected_edge_path() -> None:
+    result = build_route_result(
+        build_profile_test_graph(), source=1, target=4, profile_id="shortest"
+    )
+
+    assert result["edge_path"] == [(1, 2, 0), (2, 4, 0)]
+
+
+def test_custom_profiles_change_route_without_mutating_defaults() -> None:
+    graph = build_profile_test_graph()
+    custom = scale_profile_weights(
+        safety_multiplier=3.0,
+        unknown_multiplier=1.0,
+    )
+
+    result = build_route_result(
+        graph,
+        source=1,
+        target=4,
+        profile_id="balanced",
+        profiles=custom,
+    )
+
+    assert result["node_path"] == [1, 3, 4]
 
 
 def test_safety_profile_can_choose_a_longer_bicycle_friendly_route() -> None:
