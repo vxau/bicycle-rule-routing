@@ -49,8 +49,7 @@ async function loadRoads() {
     }
     dataStatus.textContent = `${geojson.features.length}区間を表示`;
   } catch (error) {
-    dataStatus.textContent =
-      "未生成（OSM取得スクリプトを実行してください）";
+    dataStatus.textContent = "未生成";
     console.warn("Road GeoJSON is not available:", error);
   }
 }
@@ -74,7 +73,7 @@ function addSelectedPoint(latlng) {
   selectedMarkers.push(marker);
 
   if (isStart) {
-    routeStatus.textContent = "目的地点をクリックしてください。";
+    routeStatus.textContent = "目的地を選択";
   } else {
     loadProfileRoutes();
   }
@@ -87,7 +86,7 @@ async function loadProfileRoutes() {
   }
   const request = new AbortController();
   activeRouteRequest = request;
-  routeStatus.textContent = "5種類のルートを計算しています。";
+  routeStatus.textContent = "計算中";
   routeSummary.hidden = true;
   routeComparison.hidden = true;
   profileLegend.replaceChildren();
@@ -163,9 +162,9 @@ function renderRouteComparison(routes) {
   if (initial) {
     focusRoute(initial.profile.id);
     routeStatus.textContent =
-      `${routes.filter((result) => result.available).length}種類を計算しました。表の行を選ぶと強調表示します。`;
+      `${routes.filter((result) => result.available).length}ルート表示`;
   } else {
-    routeStatus.textContent = "利用できるルートがありません。";
+    routeStatus.textContent = "経路なし";
   }
 }
 
@@ -188,10 +187,11 @@ function addComparisonRow(result) {
         formatDistance(result.summary.distance_m),
         `${result.summary.major_road_pct}%`,
         `${result.summary.cycleway_pct}%`,
+        `${result.summary.traffic_signal_count}か所`,
         `${result.summary.unknown_attribute_pct}%`,
         result.summary.profile_cost,
       ]
-    : [result.profile.label, "経路なし", "-", "-", "-", "-"];
+    : [result.profile.label, "経路なし", "-", "-", "-", "-", "-"];
 
   values.forEach((value) => {
     const cell = document.createElement("td");
@@ -286,7 +286,7 @@ function resetRoute() {
   profileLegend.replaceChildren();
   routeComparison.hidden = true;
   routeSummary.hidden = true;
-  routeStatus.textContent = "地図上で出発地点をクリックしてください。";
+  routeStatus.textContent = "出発地を選択";
 }
 
 checkApi();

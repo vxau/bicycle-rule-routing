@@ -2,7 +2,25 @@
 
 交通制度変更を背景に、OpenStreetMap（OSM）の道路属性を用いて、自転車利用者が交通ルールを守りやすい経路を比較できるWebアプリを研究・開発するための初期基盤です。
 
-現段階はロードマップのPhase 4です。比較基準となる距離最短経路に加え、暫定重みを用いた4種類の制度対応ルートを同じ画面で比較できます。
+Phase 4の経路比較まで動作し、Phase 5の一括評価機能は実装途中です。比較基準となる距離最短経路に加え、暫定重みを用いた4種類の制度対応ルートを同じ画面で比較できます。
+
+## 別のWindows PCで始める
+
+GitとPython 3.12を用意し、インターネットに接続してから次を実行します。作業フォルダは任意の場所で構いません。
+
+```powershell
+git clone https://github.com/vxau/bicycle-rule-routing.git
+Set-Location bicycle-rule-routing
+.\setup.bat
+```
+
+`setup.bat`は仮想環境と依存パッケージを用意し、初回のみ`.env`を作成します。道路データがない場合はOSMから取得します。取得データはGitに含まれないため、別PCでは初回実行時に通信が必要です。
+
+準備が終わったら`start_app.bat`をダブルクリックします。ローカルサーバーが起動し、ブラウザで`http://127.0.0.1:8000/`が開きます。停止するときは起動したコマンド画面で`Ctrl+C`を押します。
+
+対象地域を変える場合はアプリを停止してから`settings.bat`をダブルクリックします。`.env`がメモ帳で開くので、緯度・経度・取得半径を保存して閉じると道路データを取り直します。設定例は[`.env.example`](.env.example)です。取得半径は100〜5000 mです。
+
+別PCで更新を受け取るときは、そのPCの作業フォルダで`git pull`を実行します。Python環境や道路データはGit管理外なので、必要に応じて`setup.bat`を再実行してください。
 
 - OSMから小範囲の自転車道路ネットワークを取得
 - GraphML、GeoJSON、CSV、JSONとして保存
@@ -26,7 +44,7 @@
 
 | 役割 | 使用技術 |
 |---|---|
-| API・静的ファイル配信 | Python 3.10、FastAPI、Uvicorn |
+| API・静的ファイル配信 | Python 3.10〜3.12、FastAPI、Uvicorn |
 | OSM取得・道路グラフ | OSMnx、NetworkX |
 | 地理データ処理 | GeoPandas、Shapely |
 | 画面 | HTML、CSS、JavaScript |
@@ -88,10 +106,10 @@ bicycle-rule-routing/
 
 ## セットアップ
 
-PowerShellでプロジェクトへ移動します。
+PowerShellでプロジェクトへ移動します。別PCでの初回準備は上の`setup.bat`を使ってください。
 
 ```powershell
-Set-Location E:\graduation-research\bicycle-rule-routing
+Set-Location 'C:\path\to\bicycle-rule-routing'
 ```
 
 既に作成済みの仮想環境を使う場合、activateは不要です。常に仮想環境のPythonを直接指定できます。
@@ -100,11 +118,11 @@ Set-Location E:\graduation-research\bicycle-rule-routing
 .\.venv\Scripts\python.exe --version
 ```
 
-環境を作り直す場合は、pipキャッシュをEドライブ内へ向けてから依存関係を入れます。
+手動で環境を作り直す場合は、pipキャッシュをプロジェクト内へ向けてから依存関係を入れます。
 
 ```powershell
 python -m venv .venv
-$env:PIP_CACHE_DIR = 'E:\graduation-research\bicycle-rule-routing\.cache\pip'
+$env:PIP_CACHE_DIR = (Join-Path (Get-Location) '.cache\pip')
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
 ```
@@ -151,6 +169,8 @@ OSM_PLACE_LABEL=Tokyo Station
 OSMnxの通信キャッシュは`.cache/osmnx`へ保存します。同じ条件で再実行した場合はキャッシュを利用します。
 
 ## Webアプリの起動
+
+通常は`start_app.bat`をダブルクリックします。手動で起動する場合は次を実行します。
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000

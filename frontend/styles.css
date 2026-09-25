@@ -1,200 +1,125 @@
 :root {
   font-family: "Yu Gothic UI", "Meiryo", sans-serif;
-  color: #1f2933;
-  background: #f4f7f5;
+  color: #18302a;
+  background: #eef2ef;
 }
 
-body {
-  margin: 0;
-}
+* { box-sizing: border-box; }
+body { margin: 0; }
 
-header,
-main {
-  width: min(960px, calc(100% - 32px));
-  margin: 0 auto;
+header, main, footer {
+  width: min(1280px, calc(100% - 40px));
+  margin-inline: auto;
 }
 
 header {
-  padding: 32px 0 16px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 0 20px;
 }
 
-h1 {
-  margin: 4px 0 8px;
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 4px; font-size: clamp(1.6rem, 3vw, 2.2rem); }
+h2 { margin-bottom: 0; font-size: 1.05rem; }
+.subtitle { margin-bottom: 0; color: #5a6e65; font-size: .9rem; }
+
+.status-panel { display: flex; flex-wrap: wrap; gap: 10px; color: #5a6e65; font-size: .8rem; }
+.status-panel span { padding: 7px 10px; border: 1px solid #d7e1da; border-radius: 7px; background: #fff; }
+.status-panel strong { margin-left: 4px; color: #176347; }
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr);
+  gap: 16px;
+  align-items: start;
 }
 
-.eyebrow {
-  margin: 0;
-  color: #26734d;
+.map-panel, .route-panel, .comparison-panel {
+  min-width: 0;
+  border: 1px solid #d7e1da;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 14px rgb(20 45 31 / 4%);
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 12px 18px;
+}
+.panel-heading span { color: #6b7b72; font-size: .8rem; }
+
+#map { height: 590px; margin: 0 12px 12px; border-radius: 7px; background: #e5ece6; }
+
+button {
+  padding: 7px 12px;
+  border: 1px solid #cad8ce;
+  border-radius: 6px;
+  color: #185c43;
+  background: #f4f8f5;
+  font: inherit;
+  font-size: .82rem;
+  cursor: pointer;
+}
+button:hover, button:focus-visible { background: #e2f0e7; }
+
+#route-status {
+  margin: 0 18px 12px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  color: #185c43;
+  background: #eaf4ed;
+  font-size: .9rem;
   font-weight: 700;
 }
 
-.status-panel {
-  display: flex;
-  gap: 24px;
-  padding: 12px 16px;
-  background: white;
-  border: 1px solid #d7e1db;
-}
-
-.route-panel {
-  margin-top: 16px;
-  padding: 16px;
-  background: white;
-  border: 1px solid #d7e1db;
-}
-
-.route-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.route-heading h2,
-.route-heading p {
-  margin: 0 0 8px;
-}
-
-button {
-  padding: 8px 12px;
-  border: 1px solid #26734d;
-  border-radius: 4px;
-  color: #175235;
-  background: #eef8f2;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #dff1e6;
-}
+.profile-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0 18px 14px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: .79rem; }
+.legend-swatch { width: 16px; height: 5px; border-radius: 3px; }
 
 .route-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 8px 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  border-top: 1px solid #e6ebe7;
+  background: #e6ebe7;
 }
+.route-summary[hidden], .comparison-wrap[hidden] { display: none; }
+.route-summary div { min-width: 0; padding: 12px 16px; background: #fff; }
+.route-summary dt { color: #6b7b72; font-size: .75rem; }
+.route-summary dd { margin: 4px 0 0; font-size: .9rem; font-weight: 700; }
+.route-summary div:first-child { grid-column: 1 / -1; }
 
-.route-summary[hidden] {
-  display: none;
+.comparison-panel { grid-column: 1 / -1; }
+.comparison-wrap { overflow-x: auto; padding: 0 12px 12px; }
+table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+th, td { padding: 12px 10px; border-bottom: 1px solid #e5ebe6; text-align: left; white-space: nowrap; }
+th { color: #607369; background: #f4f7f4; font-weight: 600; }
+tbody tr:not(.unavailable) { cursor: pointer; }
+tbody tr:not(.unavailable):hover, tbody tr.selected { background: #e9f5ed; }
+tbody tr:focus-visible { outline: 2px solid #176347; outline-offset: -2px; }
+tbody tr.selected { box-shadow: inset 4px 0 #1e8060; }
+tbody tr.unavailable { color: #85918a; }
+
+footer { padding: 16px 0 24px; color: #718077; font-size: .75rem; text-align: right; }
+
+@media (max-width: 860px) {
+  header { align-items: flex-start; flex-direction: column; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  .comparison-panel { grid-column: auto; }
+  #map { height: min(55vh, 500px); }
 }
-
-.comparison-wrap[hidden] {
-  display: none;
-}
-
-.profile-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin: 8px 0 12px;
-}
-
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-}
-
-.legend-swatch {
-  width: 18px;
-  height: 5px;
-  border-radius: 2px;
-}
-
-.comparison-wrap {
-  overflow-x: auto;
-  margin: 8px 0 16px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-th,
-td {
-  padding: 8px;
-  border: 1px solid #d7e1db;
-  text-align: left;
-  white-space: nowrap;
-}
-
-th {
-  background: #eef3f0;
-}
-
-tbody tr:not(.unavailable) {
-  cursor: pointer;
-}
-
-tbody tr:not(.unavailable):hover,
-tbody tr.selected {
-  background: #e8f4ed;
-}
-
-tbody tr.selected {
-  box-shadow: inset 4px 0 #26734d;
-}
-
-tbody tr.unavailable {
-  color: #7a8580;
-  background: #f4f4f4;
-}
-
-.table-note {
-  margin: 6px 0 0;
-  color: #5f6f66;
-  font-size: 0.8rem;
-}
-
-.route-summary div {
-  padding: 8px;
-  background: #f4f7f5;
-}
-
-.route-summary dt {
-  color: #52645a;
-  font-size: 0.8rem;
-}
-
-.route-summary dd {
-  margin: 4px 0 0;
-  font-weight: 700;
-}
-
-.research-note {
-  margin: 8px 0 0;
-  color: #5f6f66;
-  font-size: 0.85rem;
-}
-
-#map {
-  height: 520px;
-  margin-top: 16px;
-  border: 1px solid #c5d2ca;
-}
-
-.notice {
-  font-size: 0.9rem;
-}
-
-@media (max-width: 600px) {
-  .status-panel {
-    display: block;
-  }
-
-  .route-heading {
-    display: block;
-  }
-
-  .route-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  #map {
-    height: 420px;
-  }
+@media (max-width: 500px) {
+  header, main, footer { width: min(100% - 24px, 1280px); }
+  header { padding-top: 18px; }
+  .status-panel { gap: 6px; }
+  .panel-heading { padding-inline: 14px; }
+  .panel-heading span { font-size: .7rem; }
+  #map { height: 390px; }
 }

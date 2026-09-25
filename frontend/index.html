@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自転車ルール最適ルート研究</title>
+    <title>自転車経路比較</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="/static/styles.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
@@ -11,39 +11,27 @@
   </head>
   <body>
     <header>
-      <p class="eyebrow">テストページ</p>
-      <h1>自転車ルール最適ルート研究</h1>
+      <div>
+        <h1>自転車経路比較</h1>
+        <p class="subtitle">距離・ルール・安全性・OSMデータ充足度</p>
+      </div>
+      <section class="status-panel" aria-label="システム状態">
+        <span>API <strong id="api-status">確認中</strong></span>
+        <span>道路データ <strong id="data-status">確認中</strong></span>
+      </section>
     </header>
     <main>
-      <section class="status-panel" aria-label="システム状態">
-        <p>API: <strong id="api-status">確認中</strong></p>
-        <p>道路データ: <strong id="data-status">確認中</strong></p>
+      <section class="map-panel" aria-label="道路地図">
+        <div class="panel-heading"><h2>地図</h2><span>出発地と目的地を選択</span></div>
+        <div id="map" aria-label="OpenStreetMap道路地図"></div>
       </section>
-      <section class="route-panel" aria-label="プロファイル別経路比較">
-        <div class="route-heading">
-          <div>
-            <h2>プロファイル別ルート比較</h2>
-            <p id="route-status">地図上で出発地点をクリックしてください。</p>
-          </div>
-          <button id="reset-route" type="button">選択をやり直す</button>
+      <section class="route-panel" aria-label="経路の選択">
+        <div class="panel-heading">
+          <h2>経路</h2>
+          <button id="reset-route" type="button">リセット</button>
         </div>
+        <p id="route-status" aria-live="polite">出発地を選択</p>
         <div id="profile-legend" class="profile-legend" aria-label="ルート凡例"></div>
-        <div id="route-comparison" class="comparison-wrap" hidden>
-          <table>
-            <thead>
-              <tr>
-                <th>プロファイル</th>
-                <th>距離</th>
-                <th>幹線道路率</th>
-                <th>自転車レーン率</th>
-                <th>属性不明率</th>
-                <th>仮コスト</th>
-              </tr>
-            </thead>
-            <tbody id="route-comparison-body"></tbody>
-          </table>
-          <p class="table-note">行を選ぶと、対応するルートを地図上で強調します。</p>
-        </div>
         <dl id="route-summary" class="route-summary" hidden>
           <div><dt>選択中</dt><dd id="metric-profile">-</dd></div>
           <div><dt>距離</dt><dd id="metric-distance">-</dd></div>
@@ -54,13 +42,29 @@
           <div><dt>速度情報不明率</dt><dd id="metric-maxspeed-unknown">-</dd></div>
           <div><dt>道幅情報不明率</dt><dd id="metric-width-unknown">-</dd></div>
           <div><dt>路面情報不明率</dt><dd id="metric-surface-unknown">-</dd></div>
-          <div><dt>プロファイル仮コスト</dt><dd id="metric-profile-cost">-</dd></div>
+          <div><dt>仮コスト</dt><dd id="metric-profile-cost">-</dd></div>
         </dl>
-        <p class="research-note">
-          Phase 4の比較機能です。明示的な通行禁止は制度対応側で除外し、道路種別・自転車設備・属性欠損には暫定重みを使用しています。法的な違反判定や重みの妥当性確定は行いません。
-        </p>
       </section>
-      <div id="map" aria-label="OpenStreetMap道路地図"></div>
+      <section class="comparison-panel" aria-label="ルート比較">
+        <div class="panel-heading"><h2>ルート比較</h2><span>行を選択して地図上で表示</span></div>
+        <div id="route-comparison" class="comparison-wrap" hidden>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">経路</th>
+                <th scope="col">距離</th>
+                <th scope="col">幹線道路率</th>
+                <th scope="col">自転車レーン率</th>
+                <th scope="col">信号</th>
+                <th scope="col">属性不明率</th>
+                <th scope="col">仮コスト</th>
+              </tr>
+            </thead>
+            <tbody id="route-comparison-body"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
+    <footer>研究用・暫定評価｜交通規制・安全性は未検証</footer>
   </body>
 </html>
