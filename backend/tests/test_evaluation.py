@@ -7,8 +7,10 @@ import pytest
 from backend.app.evaluation import (
     ODPair,
     evaluate_profiles,
+    evaluate_sensitivity,
     load_od_pairs,
     route_signature,
+    summarize_sensitivity,
 )
 from backend.app.routing import ROUTE_PROFILE_IDS
 
@@ -215,3 +217,59 @@ def test_evaluate_profiles_preserves_unavailable_rows() -> None:
     assert len(unavailable) == 5
     assert not unavailable["available"].any()
     assert unavailable["error"].notna().all()
+
+
+def test_sensitivity_evaluates_nine_scenarios_and_keeps_the_standard() -> None:
+    graph = build_graph()
+    pair = build_pair()
+    standard = evaluate_profiles(graph, [pair])
+
+    result = evaluate_sensitivity(graph, [pair])
+
+    assert len(result) == 45
+    assert len(result[["safety_level", "unknown_level"]].drop_duplicates()) == 9
+    medium = result.query("safety_level == 'medium' and unknown_level == 'medium'")
+    assert medium["route_signature"].tolist() == standard["route_signature"].tolist()
+    assert medium["same_as_standard"].all()
+    assert medium["distance_change_from_standard_pct"].eq(0).all()
+    assert result.query("profile_id == 'shortest'")["same_as_standard"].all()
+
+
+def test_sensitivity_summary_uses_available_od_as_change_denominator() -> None:
+    rows = pd.DataFrame(
+        [
+            {"safety_level": "weak", "safety_multiplier": 0.5,
+             "unknown_level": "medium", "unknown_multiplier": 1.0,
+             "profile_id": "safety", "profile_label": "安全性優先", "od_id": "OD-01",
+             "available": True, "distance_m": 100.0, "distance_increase_pct": 0.0,
+             "major_road_pct": 20.0, "cycleway_pct": 40.0,
+             "traffic_signal_count": 1, "unknown_attribute_pct": 10.0,
+             "same_as_standard": False},
+            {"safety_level": "weak", "safety_multiplier": 0.5,
+             "unknown_level": "medium", "unknown_multiplier": 1.0,
+             "profile_id": "safety", "profile_label": "安全性優先", "od_id": "OD-02",
+             "available": True, "distance_m": 200.0, "distance_increase_pct": 10.0,
+             "major_road_pct": 40.0, "cycleway_pct": 60.0,
+             "traffic_signal_count": 3, "unknown_attribute_pct": 30.0,
+             "same_as_standard": True},
+            {"safety_level": "weak", "safety_multiplier": 0.5,
+             "unknown_level": "medium", "unknown_multiplier": 1.0,
+             "profile_id": "safety", "profile_label": "安全性優先", "od_id": "OD-03",
+             "available": False, "distance_m": pd.NA, "distance_increase_pct": pd.NA,
+             "major_road_pct": pd.NA, "cycleway_pct": pd.NA,
+             "traffic_signal_count": pd.NA, "unknown_attribute_pct": pd.NA,
+             "same_as_standard": pd.NA},
+        ]
+    )
+
+    summary = summarize_sensitivity(rows).iloc[0]
+
+    assert summary["evaluated_od_count"] == 3
+    assert summary["available_od_count"] == 2
+    assert summary["mean_distance_m"] == 150.0
+    assert summary["mean_distance_increase_pct"] == 5.0
+    assert summary["mean_major_road_pct"] == 30.0
+    assert summary["mean_cycleway_pct"] == 50.0
+    assert summary["mean_traffic_signal_count"] == 2.0
+    assert summary["mean_unknown_attribute_pct"] == 20.0
+    assert summary["route_changed_from_standard_pct"] == 50.0

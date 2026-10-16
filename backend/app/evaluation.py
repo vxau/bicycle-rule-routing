@@ -4,6 +4,7 @@ import hashlib
 import json
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
+from itertools import product
 from pathlib import Path
 
 import networkx as nx
@@ -15,6 +16,7 @@ from backend.app.routing import (
     ProfileMap,
     build_route_result,
     find_nearest_node,
+    scale_profile_weights,
 )
 
 
@@ -63,6 +65,33 @@ ROUTE_COMPARISON_COLUMNS = (
     "same_route_profile_count",
     "same_route_profile_pct",
     "unique_route_count",
+)
+SENSITIVITY_LEVELS = {"weak": 0.5, "medium": 1.0, "strong": 2.0}
+SENSITIVITY_COLUMNS = (
+    *ROUTE_COMPARISON_COLUMNS,
+    "safety_level",
+    "safety_multiplier",
+    "unknown_level",
+    "unknown_multiplier",
+    "same_as_standard",
+    "distance_change_from_standard_pct",
+)
+SENSITIVITY_SUMMARY_COLUMNS = (
+    "safety_level",
+    "safety_multiplier",
+    "unknown_level",
+    "unknown_multiplier",
+    "profile_id",
+    "profile_label",
+    "evaluated_od_count",
+    "available_od_count",
+    "mean_distance_m",
+    "mean_distance_increase_pct",
+    "mean_major_road_pct",
+    "mean_cycleway_pct",
+    "mean_traffic_signal_count",
+    "mean_unknown_attribute_pct",
+    "route_changed_from_standard_pct",
 )
 
 
@@ -227,6 +256,100 @@ def evaluate_profiles(
         rows.extend(pair_rows)
 
     return pd.DataFrame(rows, columns=ROUTE_COMPARISON_COLUMNS)
+
+
+def evaluate_sensitivity(
+    graph: nx.MultiDiGraph,
+    od_pairs: Sequence[ODPair],
+) -> pd.DataFrame:
+    standard = evaluate_profiles(graph, od_pairs)
+    standard_by_key = {
+        (row["od_id"], row["profile_id"]): row
+        for row in standard.to_dict(orient="records")
+    }
+    frames: list[pd.DataFrame] = []
+
+    for (safety_level, safety_multiplier), (
+        unknown_level,
+        unknown_multiplier,
+    ) in product(SENSITIVITY_LEVELS.items(), repeat=2):
+        if safety_level == unknown_level == "medium":
+            frame = standard.copy()
+        else:
+            profiles = scale_profile_weights(
+                safety_multiplier=safety_multiplier,
+                unknown_multiplier=unknown_multiplier,
+            )
+            frame = evaluate_profiles(graph, od_pairs, profiles=profiles)
+
+        frame["safety_level"] = safety_level
+        frame["safety_multiplier"] = safety_multiplier
+        frame["unknown_level"] = unknown_level
+        frame["unknown_multiplier"] = unknown_multiplier
+
+        same_as_standard: list[bool | object] = []
+        distance_changes: list[float | object] = []
+        for row in frame.to_dict(orient="records"):
+            baseline = standard_by_key[(row["od_id"], row["profile_id"])]
+            if not row["available"] or not baseline["available"]:
+                same_as_standard.append(pd.NA)
+                distance_changes.append(pd.NA)
+                continue
+            same_as_standard.append(
+                row["route_signature"] == baseline["route_signature"]
+            )
+            baseline_distance = float(baseline["distance_m"])
+            distance_changes.append(
+                round(
+                    (float(row["distance_m"]) - baseline_distance)
+                    / baseline_distance
+                    * 100,
+                    2,
+                )
+                if baseline_distance > 0
+                else 0.0
+            )
+        frame["same_as_standard"] = same_as_standard
+        frame["distance_change_from_standard_pct"] = distance_changes
+        frames.append(frame)
+
+    return pd.concat(frames, ignore_index=True).loc[:, SENSITIVITY_COLUMNS]
+
+
+def summarize_sensitivity(results: pd.DataFrame) -> pd.DataFrame:
+    group_columns = [
+        "safety_level",
+        "safety_multiplier",
+        "unknown_level",
+        "unknown_multiplier",
+        "profile_id",
+        "profile_label",
+    ]
+    metric_columns = {
+        "distance_m": "mean_distance_m",
+        "distance_increase_pct": "mean_distance_increase_pct",
+        "major_road_pct": "mean_major_road_pct",
+        "cycleway_pct": "mean_cycleway_pct",
+        "traffic_signal_count": "mean_traffic_signal_count",
+        "unknown_attribute_pct": "mean_unknown_attribute_pct",
+    }
+    rows: list[dict[str, object]] = []
+    for key, group in results.groupby(group_columns, sort=False):
+        row = dict(zip(group_columns, key))
+        available = group.loc[group["available"] == True]
+        row["evaluated_od_count"] = int(group["od_id"].nunique())
+        row["available_od_count"] = int(available["od_id"].nunique())
+        for source, target in metric_columns.items():
+            values = pd.to_numeric(available[source], errors="coerce")
+            row[target] = round(float(values.mean()), 2) if values.notna().any() else pd.NA
+        comparable = available["same_as_standard"].dropna()
+        row["route_changed_from_standard_pct"] = (
+            round((comparable == False).sum() / len(comparable) * 100, 2)
+            if len(comparable)
+            else pd.NA
+        )
+        rows.append(row)
+    return pd.DataFrame(rows, columns=SENSITIVITY_SUMMARY_COLUMNS)
 
 
 def _base_evaluation_row(
