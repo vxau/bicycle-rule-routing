@@ -8,6 +8,7 @@ from backend.app.evaluation import (
     ODPair,
     evaluate_profiles,
     evaluate_sensitivity,
+    default_od_pairs_path,
     load_od_pairs,
     route_signature,
     summarize_sensitivity,
@@ -30,6 +31,21 @@ def valid_row() -> dict[str, object]:
 
 def write_rows(path: Path, rows: list[dict[str, object]]) -> None:
     pd.DataFrame(rows).to_csv(path, index=False)
+
+
+def test_default_od_pairs_prefers_local_input_without_changing_tracked_sample(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True)
+    tracked = input_dir / "od_pairs.csv"
+    tracked.write_text("tracked", encoding="utf-8")
+
+    assert default_od_pairs_path(tmp_path) == tracked
+
+    local = input_dir / "od_pairs.local.csv"
+    local.write_text("local", encoding="utf-8")
+    assert default_od_pairs_path(tmp_path) == local
 
 
 def test_load_od_pairs_reads_valid_csv(tmp_path: Path) -> None:

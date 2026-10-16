@@ -18,15 +18,15 @@ Set-Location bicycle-rule-routing
 
 準備が終わったら`start_app.bat`をダブルクリックします。ローカルサーバーが起動し、ブラウザで`http://127.0.0.1:8000/`が開きます。停止するときは起動したコマンド画面で`Ctrl+C`を押します。
 
-20組の一括評価は`run_evaluation.bat`、既存道路の設備配置候補の計算は`run_placement.bat`をダブルクリックします。結果は`data/processed/`へ保存されます。
+20組の一括評価は`run_evaluation.bat`、設備配置候補と整備前後のCSV保存は`run_placement.bat`をダブルクリックします。アプリを開くと、既定の1,000 m上限で候補と整備前後の結果が画面に表示されます。
 
-対象地域を変える場合はアプリを停止してから`settings.bat`をダブルクリックします。`.env`がメモ帳で開くので、緯度・経度・取得半径を保存して閉じると道路データを取り直します。設定例は[`.env.example`](.env.example)です。取得半径は100〜5000 mです。
+対象地域を変える場合はアプリを停止してから`settings.bat`をダブルクリックします。`.env`がメモ帳で開くので、緯度・経度・取得半径を保存して閉じると道路データと20組のODペアを取り直します。PC固有のODペアはGit管理外の`data/input/od_pairs.local.csv`に保存され、共有用の東京駅20組より優先されます。設定例は[`.env.example`](.env.example)です。取得半径は100〜5000 mですが、狭すぎる地域では20組を選べません。
 
 別PCで更新を受け取るときは、そのPCの作業フォルダで`git pull`を実行します。Python環境や道路データはGit管理外なので、必要に応じて`setup.bat`を再実行してください。
 
 ## Phase 5 の一括評価
 
-既定の設定は東京駅周辺3,000 mです。`data/input/od_pairs.csv`に短距離5組、中距離10組、長距離5組の計20組を保存しています。地域を変更した場合は、道路データを取り直した後にODペアも再生成してください。
+既定の設定は東京駅周辺3,000 mです。`data/input/od_pairs.csv`に短距離5組、中距離10組、長距離5組の計20組を保存しています。`settings.bat`で地域を変更した場合は`od_pairs.local.csv`が再生成されます。
 
 ```powershell
 .\.venv\Scripts\python.exe -m backend.scripts.generate_od_pairs
@@ -43,7 +43,9 @@ Set-Location bicycle-rule-routing
 .\.venv\Scripts\python.exe -m backend.scripts.optimize_facilities --budget-m 1500
 ```
 
-`data/processed/facility_candidates.csv`に区間ID、端点座標、長さ、20組の経路での通過回数、削減見込み、選択結果を出力します。`facility_placement_summary.json`には予算と全体の集計を出力します。`cycleway=no`など設備がないことをOSMに明記した区間だけを候補にします。タグがない区間は設備がないと判断しません。20組は実測交通量ではなく、現状経路を固定して計算するため、施工箇所の確定には現地調査と需要・費用データが必要です。数理モデルと次の検証課題は[設備配置の研究設計](docs/research/facility-placement.md)に記載しています。
+`data/processed/facility_candidates.csv`に区間ID、端点座標、長さ、20組の経路での通過回数、削減見込み、選択結果を出力します。`facility_placement_comparison.csv`には20組それぞれの整備前後の経路距離、設備なし区間の通行距離、経路変更の有無を出力します。`facility_placement_summary.json`には予算と全体の集計を出力します。画面では選定区間を橙、未選定候補を灰で表示し、20組の比較を開いて確認できます。
+
+`cycleway=no`など設備がないことをOSMに明記した区間だけを候補にします。タグがない区間は設備がないと判断しません。20組は実測交通量ではありません。選んだ区間に設備ができたと仮定して経路を再計算しますが、施工箇所の確定には現地調査と需要・費用データが必要です。数理モデルと検証課題は[設備配置の研究設計](docs/research/facility-placement.md)に記載しています。
 
 - OSMから小範囲の自転車道路ネットワークを取得
 - GraphML、GeoJSON、CSV、JSONとして保存

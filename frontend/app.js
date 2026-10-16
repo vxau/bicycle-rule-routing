@@ -6,12 +6,17 @@ const resetRouteButton = document.querySelector("#reset-route");
 const profileLegend = document.querySelector("#profile-legend");
 const routeComparison = document.querySelector("#route-comparison");
 const routeComparisonBody = document.querySelector("#route-comparison-body");
+const placementToggle = document.querySelector("#show-placement");
+const placementStatus = document.querySelector("#placement-status");
+const placementSummary = document.querySelector("#placement-summary");
+const placementOdBody = document.querySelector("#placement-od-body");
 const map = L.map("map").setView([35.681236, 139.767125], 15);
 let selectedPoints = [];
 let selectedMarkers = [];
 let routeLayers = new Map();
 let routeResults = [];
 let activeRouteRequest = null;
+let placementLayer = null;
 
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -41,7 +46,7 @@ async function loadRoads() {
     }
     const geojson = await response.json();
     const layer = L.geoJSON(geojson, {
-      style: { color: "#256f4a", weight: 3, opacity: 0.8 },
+      style: { color: "#748e80", weight: 1, opacity: 0.16 },
       interactive: false,
     }).addTo(map);
     if (layer.getBounds().isValid()) {
@@ -52,6 +57,93 @@ async function loadRoads() {
     dataStatus.textContent = "未生成";
     console.warn("Road GeoJSON is not available:", error);
   }
+}
+
+async function loadPlacement() {
+  try {
+    const response = await fetch("/api/placement");
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.detail || `HTTP ${response.status}`);
+    }
+    renderPlacement(result);
+  } catch (error) {
+    placementStatus.textContent = "結果を表示できません";
+    console.warn("Placement evaluation is not available:", error);
+  }
+}
+
+function renderPlacement(result) {
+  const { summary, candidates, od_comparison: comparisons } = result;
+  if (placementLayer) {
+    placementLayer.remove();
+  }
+  const pending = candidates.features.filter((feature) => !feature.properties.selected);
+  const selected = candidates.features.filter((feature) => feature.properties.selected);
+  const candidateLines = L.geoJSON(
+    { type: "FeatureCollection", features: pending },
+    { bubblingMouseEvents: false,
+      style: { color: "#697c91", weight: 4, opacity: 0.75 },
+      onEachFeature: bindPlacementPopup },
+  );
+  const selectedLines = L.geoJSON(
+    { type: "FeatureCollection", features: selected },
+    { bubblingMouseEvents: false,
+      style: { color: "#e99b16", weight: 7, opacity: 0.95 },
+      onEachFeature: bindPlacementPopup },
+  );
+  placementLayer = L.layerGroup([candidateLines, selectedLines]);
+  if (placementToggle.checked) {
+    placementLayer.addTo(map);
+  }
+
+  placementStatus.textContent = `整備延長の上限 ${formatDistance(summary.budget_m)}`;
+  document.querySelector("#placement-selected").textContent =
+    `${summary.selected_count}/${summary.candidate_count}区間`;
+  document.querySelector("#placement-exposure").textContent =
+    `${formatDistance(summary.before_exposure_m)} → ${formatDistance(summary.after_exposure_m)}`;
+  document.querySelector("#placement-changed").textContent =
+    `${summary.route_changed_od_count}/${summary.available_od_count}組`;
+  document.querySelector("#placement-distance").textContent =
+    `${formatDistance(summary.before_total_distance_m)} → ${formatDistance(summary.after_total_distance_m)}`;
+  document.querySelector("#placement-unknown").textContent =
+    formatDistance(summary.before_unknown_m);
+
+  placementOdBody.replaceChildren();
+  comparisons.forEach((row) => {
+    const tr = document.createElement("tr");
+    const cells = [
+      row.od_id,
+      row.available_before && row.available_after
+        ? `${formatDistance(row.before_distance_m)} → ${formatDistance(row.after_distance_m)}`
+        : "経路なし",
+      row.available_before && row.available_after
+        ? `${formatDistance(row.before_exposure_m)} → ${formatDistance(row.after_exposure_m)}`
+        : "-",
+      row.route_changed === null ? "-" : row.route_changed ? "あり" : "なし",
+    ];
+    cells.forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      tr.append(cell);
+    });
+    placementOdBody.append(tr);
+  });
+  placementSummary.hidden = false;
+}
+
+function bindPlacementPopup(feature, layer) {
+  const properties = feature.properties;
+  const popup = document.createElement("div");
+  popup.textContent =
+    `${properties.selected ? "整備選定" : "候補"}：${formatDistance(properties.length_m)}・` +
+    `${properties.od_count}組が通過`;
+  layer.bindPopup(popup);
+  layer.on("click", (event) => {
+    if (event.originalEvent) {
+      L.DomEvent.stopPropagation(event.originalEvent);
+    }
+  });
 }
 
 function addSelectedPoint(latlng) {
@@ -234,6 +326,9 @@ function focusRoute(profileId) {
   if (selected) {
     showRouteSummary(selected.summary, selected.profile);
   }
+  if (placementLayer && placementToggle.checked) {
+    placementLayer.eachLayer((group) => group.eachLayer((line) => line.bringToFront()));
+  }
 }
 
 function showRouteSummary(summary, profile) {
@@ -291,5 +386,16 @@ function resetRoute() {
 
 checkApi();
 loadRoads();
+loadPlacement();
 map.on("click", (event) => addSelectedPoint(event.latlng));
 resetRouteButton.addEventListener("click", resetRoute);
+placementToggle.addEventListener("change", () => {
+  if (!placementLayer) {
+    return;
+  }
+  if (placementToggle.checked) {
+    placementLayer.addTo(map);
+  } else {
+    placementLayer.remove();
+  }
+});

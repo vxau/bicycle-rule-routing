@@ -107,6 +107,12 @@ class ODPair:
     distance_band: str
 
 
+def default_od_pairs_path(project_root: Path) -> Path:
+    input_dir = project_root / "data" / "input"
+    local = input_dir / "od_pairs.local.csv"
+    return local if local.exists() else input_dir / "od_pairs.csv"
+
+
 def route_signature(
     edge_path: Sequence[tuple[Hashable, Hashable, Hashable]],
 ) -> str:

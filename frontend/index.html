@@ -22,7 +22,13 @@
     </header>
     <main>
       <section class="map-panel" aria-label="道路地図">
-        <div class="panel-heading"><h2>地図</h2><span>出発地と目的地を選択</span></div>
+        <div class="panel-heading">
+          <h2>地図</h2>
+          <div class="map-controls">
+            <span>出発地と目的地を選択</span>
+            <label class="placement-toggle"><input id="show-placement" type="checkbox" checked>整備候補</label>
+          </div>
+        </div>
         <div id="map" aria-label="OpenStreetMap道路地図"></div>
       </section>
       <section class="route-panel" aria-label="経路の選択">
@@ -44,6 +50,30 @@
           <div><dt>路面情報不明率</dt><dd id="metric-surface-unknown">-</dd></div>
           <div><dt>仮コスト</dt><dd id="metric-profile-cost">-</dd></div>
         </dl>
+      </section>
+      <section class="placement-panel" aria-label="自転車設備の配置実験">
+        <div class="panel-heading">
+          <h2>整備候補の比較</h2>
+          <span id="placement-status" aria-live="polite">計算中</span>
+        </div>
+        <div id="placement-summary" hidden>
+          <div class="placement-metrics">
+            <div><span>選定区間</span><strong id="placement-selected">-</strong></div>
+            <div><span>設備なし区間の通行距離</span><strong id="placement-exposure">-</strong></div>
+            <div><span>経路が変わったOD</span><strong id="placement-changed">-</strong></div>
+            <div><span>総経路距離</span><strong id="placement-distance">-</strong></div>
+          </div>
+          <p class="placement-note"><span class="map-key selected-key"></span>選定 <span class="map-key candidate-key"></span>候補｜20組を各1通行とする試算。設備なしと明記された区間のみ対象。設備タグ不明 <strong id="placement-unknown">-</strong> は評価外。</p>
+          <details class="placement-details">
+            <summary>OD別の結果を見る</summary>
+            <div class="comparison-wrap">
+              <table>
+                <thead><tr><th scope="col">OD</th><th scope="col">経路距離 前→後</th><th scope="col">設備なし 前→後</th><th scope="col">経路変更</th></tr></thead>
+                <tbody id="placement-od-body"></tbody>
+              </table>
+            </div>
+          </details>
+        </div>
       </section>
       <section class="comparison-panel" aria-label="ルート比較">
         <div class="panel-heading"><h2>ルート比較</h2><span>行を選択して地図上で表示</span></div>

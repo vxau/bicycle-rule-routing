@@ -7,6 +7,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.app.evaluation import ODPair, default_od_pairs_path, load_od_pairs
+from backend.app.facility_placement import candidate_geojson, evaluate_placement
 from backend.app.routing import (
     build_route_comparison,
     build_route_result,
@@ -43,6 +45,33 @@ def get_graph() -> nx.MultiDiGraph:
             status_code=503,
             detail="道路グラフがありません。OSM取得スクリプトを実行してください",
         ) from exc
+
+
+@lru_cache(maxsize=1)
+def get_od_pairs() -> list[ODPair]:
+    try:
+        return load_od_pairs(default_od_pairs_path(PROJECT_ROOT))
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="評価用ODペアがありません。OD生成スクリプトを実行してください",
+        ) from exc
+
+
+@app.get("/api/placement")
+def placement(
+    graph: Annotated[nx.MultiDiGraph, Depends(get_graph)],
+    od_pairs: Annotated[list[ODPair], Depends(get_od_pairs)],
+    budget_m: Annotated[float, Query(ge=0, le=20_000)] = 1_000.0,
+) -> dict[str, object]:
+    candidates, selected, summary, comparisons = evaluate_placement(
+        graph, od_pairs, budget_m=budget_m
+    )
+    return {
+        "summary": summary,
+        "candidates": candidate_geojson(graph, candidates, selected),
+        "od_comparison": comparisons,
+    }
 
 
 @app.get("/api/routes/shortest")

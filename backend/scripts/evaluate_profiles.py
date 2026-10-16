@@ -10,6 +10,7 @@ from pathlib import Path
 from backend.app.evaluation import (
     evaluate_profiles,
     evaluate_sensitivity,
+    default_od_pairs_path,
     load_od_pairs,
     summarize_sensitivity,
 )
@@ -58,7 +59,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--od-pairs",
         type=Path,
-        default=PROJECT_ROOT / "data" / "input" / "od_pairs.csv",
+        default=default_od_pairs_path(PROJECT_ROOT),
     )
     parser.add_argument(
         "--comparison-output",

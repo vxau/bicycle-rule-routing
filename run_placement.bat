@@ -11,6 +11,7 @@ echo Screening cycling-facility improvements with a 1000 m budget...
 if errorlevel 1 goto placement_error
 
 echo Results are in data\processed\facility_candidates.csv and
+echo data\processed\facility_placement_comparison.csv and
 echo data\processed\facility_placement_summary.json.
 pause
 exit /b 0
