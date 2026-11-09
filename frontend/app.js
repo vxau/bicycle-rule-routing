@@ -17,6 +17,9 @@ let routeLayers = new Map();
 let routeResults = [];
 let activeRouteRequest = null;
 let placementLayer = null;
+let roadLayer = null;
+let mapMode = "routes";
+const facilitySurvey = FacilitySurvey.create({ map });
 
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -48,8 +51,10 @@ async function loadRoads() {
     const layer = L.geoJSON(geojson, {
       style: { color: "#748e80", weight: 1, opacity: 0.16 },
       interactive: false,
-    }).addTo(map);
-    if (layer.getBounds().isValid()) {
+    });
+    roadLayer = layer;
+    if (mapMode === "routes") layer.addTo(map);
+    if (mapMode === "routes" && layer.getBounds().isValid()) {
       map.fitBounds(layer.getBounds());
     }
     dataStatus.textContent = `${geojson.features.length}区間を表示`;
@@ -93,7 +98,7 @@ function renderPlacement(result) {
       onEachFeature: bindPlacementPopup },
   );
   placementLayer = L.layerGroup([candidateLines, selectedLines]);
-  if (placementToggle.checked) {
+  if (mapMode === "routes" && placementToggle.checked) {
     placementLayer.addTo(map);
   }
 
@@ -234,9 +239,8 @@ function renderRouteComparison(routes) {
         weight: 4,
         opacity: 0.55,
       },
-    })
-      .bindTooltip(result.profile.label)
-      .addTo(map);
+    }).bindTooltip(result.profile.label);
+    if (mapMode === "routes") layer.addTo(map);
     layer.on("click", (event) => {
       if (event.originalEvent) {
         L.DomEvent.stopPropagation(event.originalEvent);
@@ -326,7 +330,7 @@ function focusRoute(profileId) {
   if (selected) {
     showRouteSummary(selected.summary, selected.profile);
   }
-  if (placementLayer && placementToggle.checked) {
+  if (mapMode === "routes" && placementLayer && placementToggle.checked) {
     placementLayer.eachLayer((group) => group.eachLayer((line) => line.bringToFront()));
   }
 }
@@ -387,15 +391,46 @@ function resetRoute() {
 checkApi();
 loadRoads();
 loadPlacement();
-map.on("click", (event) => addSelectedPoint(event.latlng));
+map.on("click", (event) => {
+  if (mapMode === "routes") addSelectedPoint(event.latlng);
+});
 resetRouteButton.addEventListener("click", resetRoute);
 placementToggle.addEventListener("change", () => {
   if (!placementLayer) {
     return;
   }
-  if (placementToggle.checked) {
+  if (mapMode === "routes" && placementToggle.checked) {
     placementLayer.addTo(map);
   } else {
     placementLayer.remove();
   }
+});
+
+document.querySelectorAll('input[name="map-mode"]').forEach(input => {
+  input.addEventListener("change", () => {
+    if (!input.checked) return;
+    mapMode = input.value;
+    const surveying = mapMode === "survey";
+    document.querySelector("#survey-controls").hidden = !surveying;
+    document.querySelector("#survey-panel").hidden = !surveying;
+    document.querySelector("#placement-toggle-control").hidden = surveying;
+    document.querySelectorAll(".route-panel, .placement-panel, .comparison-panel").forEach(panel => {
+      panel.hidden = surveying;
+    });
+    [roadLayer, ...routeLayers.values(), ...selectedMarkers].forEach(layer => {
+      if (!layer) return;
+      if (surveying) layer.remove();
+      else layer.addTo(map);
+    });
+    if (placementLayer) {
+      if (!surveying && placementToggle.checked) placementLayer.addTo(map);
+      else placementLayer.remove();
+    }
+    facilitySurvey.setActive(surveying);
+    if (!surveying) {
+      const selectedRow = routeComparisonBody.querySelector("tr.selected");
+      if (selectedRow) focusRoute(selectedRow.dataset.profileId);
+    }
+    map.invalidateSize();
+  });
 });

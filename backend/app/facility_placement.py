@@ -31,12 +31,12 @@ class FacilityCandidate:
     benefit_m: float
 
 
-def _segment_key(u: Hashable, v: Hashable, key: Hashable) -> tuple[str, str, str]:
+def segment_key(u: Hashable, v: Hashable, key: Hashable) -> tuple[str, str, str]:
     start, end = sorted((str(u), str(v)))
     return start, end, str(key)
 
 
-def _facility_state(data: dict[str, object]) -> str:
+def facility_state(data: dict[str, object]) -> str:
     states = [classify_tag(_tag_values(data.get(tag))) for tag in CYCLEWAY_TAGS]
     if "present" in states:
         return "present"
@@ -53,7 +53,7 @@ def score_candidates(
 ) -> tuple[list[FacilityCandidate], dict[str, float | int]]:
     groups: dict[tuple[str, str, str], list[dict[str, object]]] = {}
     for u, v, key, data in graph.edges(keys=True, data=True):
-        groups.setdefault(_segment_key(u, v, key), []).append(data)
+        groups.setdefault(segment_key(u, v, key), []).append(data)
 
     used: dict[tuple[str, str, str], dict[str, object]] = {}
     baseline_exposure = 0.0
@@ -74,13 +74,13 @@ def score_candidates(
         available_count += 1
         for u, v, key in route["edge_path"]:
             data = graph[u][v][key]
-            if _facility_state(data) != "explicit_absent":
+            if facility_state(data) != "explicit_absent":
                 continue
             length = float(data["length"])
             baseline_exposure += length
-            group_key = _segment_key(u, v, key)
+            group_key = segment_key(u, v, key)
             if not all(
-                _facility_state(member) == "explicit_absent"
+                facility_state(member) == "explicit_absent"
                 for member in groups[group_key]
             ):
                 continue
@@ -145,7 +145,7 @@ def _improved_graph(
     improved = graph.copy()
     selected_ids = {candidate.segment_id for candidate in selected}
     for u, v, key, data in improved.edges(keys=True, data=True):
-        if "|".join(_segment_key(u, v, key)) not in selected_ids:
+        if "|".join(segment_key(u, v, key)) not in selected_ids:
             continue
         for tag in CYCLEWAY_TAGS:
             data.pop(tag, None)
@@ -173,7 +173,7 @@ def _route_measurements(
     unknown = 0.0
     for u, v, key in route["edge_path"]:
         data = graph[u][v][key]
-        state = _facility_state(data)
+        state = facility_state(data)
         if state == "explicit_absent":
             exposure += float(data["length"])
         elif state == "unknown":
@@ -292,7 +292,7 @@ def candidate_geojson(
     selected_ids = {candidate.segment_id for candidate in selected}
     geometries = {}
     for u, v, key, data in graph.edges(keys=True, data=True):
-        segment_id = "|".join(_segment_key(u, v, key))
+        segment_id = "|".join(segment_key(u, v, key))
         geometries.setdefault(segment_id, data.get("geometry"))
     features = []
     for candidate in candidates:

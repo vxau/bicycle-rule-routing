@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.app.evaluation import ODPair, default_od_pairs_path, load_od_pairs
+from backend.app.facility_inventory import build_facility_inventory
 from backend.app.facility_placement import candidate_geojson, evaluate_placement
 from backend.app.routing import (
     build_route_comparison,
@@ -56,6 +57,13 @@ def get_od_pairs() -> list[ODPair]:
             status_code=503,
             detail="評価用ODペアがありません。OD生成スクリプトを実行してください",
         ) from exc
+
+
+@app.get("/api/facilities")
+def facilities(
+    graph: Annotated[nx.MultiDiGraph, Depends(get_graph)],
+) -> dict[str, object]:
+    return build_facility_inventory(graph)
 
 
 @app.get("/api/placement")

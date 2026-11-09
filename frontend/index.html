@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="/static/styles.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <script src="/static/facility-survey.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body>
@@ -25,11 +26,35 @@
         <div class="panel-heading">
           <h2>地図</h2>
           <div class="map-controls">
-            <span>出発地と目的地を選択</span>
-            <label class="placement-toggle"><input id="show-placement" type="checkbox" checked>整備候補</label>
+            <fieldset class="map-mode" aria-label="地図の使い方">
+              <label><input type="radio" name="map-mode" value="routes" checked>経路比較</label>
+              <label><input type="radio" name="map-mode" value="survey">設備調査</label>
+            </fieldset>
+            <label class="placement-toggle" id="placement-toggle-control"><input id="show-placement" type="checkbox" checked>整備候補</label>
           </div>
         </div>
+        <div id="survey-controls" class="survey-controls" hidden>
+          <p>道路をクリックしてOSMタグを確認し、調査する区間を選択します。</p>
+          <fieldset class="survey-filters">
+            <legend>表示する設備情報</legend>
+            <label><input type="checkbox" data-facility-filter="present" aria-label="設備あり" checked><span class="facility-key facility-present"></span>設備あり<small data-facility-count="present">-</small></label>
+            <label><input type="checkbox" data-facility-filter="explicit_absent" aria-label="明示的になし" checked><span class="facility-key facility-absent"></span>明示的になし<small data-facility-count="explicit_absent">-</small></label>
+            <label><input type="checkbox" data-facility-filter="unknown" aria-label="不明" checked><span class="facility-key facility-unknown"></span>不明<small data-facility-count="unknown">-</small></label>
+          </fieldset>
+          <p id="survey-status" role="status">設備調査に切り替えると読み込みます</p>
+          <button id="survey-retry" type="button" hidden>再読み込み</button>
+          <p class="survey-note">全道路を往復でまとめた集計です。OSMタグによる暫定判定で、現地確認済みではありません。方向で判定が異なる区間も「不明」に含みます。</p>
+        </div>
         <div id="map" aria-label="OpenStreetMap道路地図"></div>
+      </section>
+      <section id="survey-panel" class="survey-panel" aria-label="現地確認の準備" hidden>
+        <div class="panel-heading"><h2>調査リスト</h2><span id="survey-selected-count">0区間</span></div>
+        <p class="survey-help">まず「不明」の道路を確認し、設備の有無を調べる区間を追加してください。</p>
+        <p id="survey-empty-selection" class="survey-help">地図の道路をクリックして追加できます。</p>
+        <ul id="survey-selected-list" class="survey-selected-list"></ul>
+        <div class="survey-actions"><button id="survey-export" type="button" disabled>調査CSVを保存</button></div>
+        <p id="survey-storage-status" class="survey-help" role="status"></p>
+        <p class="survey-help">CSVに確認結果（あり・なし・不明）、確認日、資料URLや写真の識別子、幅員、メモを記入します。調査結果を整理してから、整備候補への追加を検討します。</p>
       </section>
       <section class="route-panel" aria-label="経路の選択">
         <div class="panel-heading">
